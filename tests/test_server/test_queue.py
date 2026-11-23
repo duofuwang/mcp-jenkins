@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemTask
+from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemExecutable, QueueItemTask
 from mcp_jenkins.server import queue
 
 
@@ -43,6 +43,51 @@ async def test_get_queue_item(mock_jenkins, mocker):
         'why': '1',
         'task': {'fullDisplayName': '1', 'name': '1', 'url': '1'},
     }
+
+
+@pytest.mark.asyncio
+async def test_get_queue_item_with_executable(mock_jenkins, mocker):
+    q_item = QueueItem(
+        id=1,
+        inQueueSince=1,
+        url='1',
+        why=None,
+        task=QueueItemTask(name='job'),
+        executable=QueueItemExecutable(number=42, url='https://example.com/job/job/42/'),
+    )
+
+    mock_jenkins.get_queue_item.return_value = q_item
+    assert await queue.get_queue_item(mocker.Mock(), id=1) == {
+        'id': 1,
+        'inQueueSince': 1,
+        'url': '1',
+        'task': {'name': 'job'},
+        'executable': {'number': 42, 'url': 'https://example.com/job/job/42/'},
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_all_queue_items_with_executable(mock_jenkins, mocker):
+    queued = QueueItem(id=1, inQueueSince=1, url='1', why='Waiting', task=QueueItemTask())
+    running = QueueItem(
+        id=2,
+        inQueueSince=2,
+        url='2',
+        why=None,
+        task=QueueItemTask(),
+        executable=QueueItemExecutable(number=7, url='https://example.com/job/job/7/'),
+    )
+
+    mock_jenkins.get_queue.return_value = Queue(discoverableItems=[], items=[queued, running])
+    assert await queue.get_all_queue_items(mocker.Mock()) == [
+        {'id': 1, 'inQueueSince': 1, 'url': '1', 'why': 'Waiting'},
+        {
+            'id': 2,
+            'inQueueSince': 2,
+            'url': '2',
+            'executable': {'number': 7, 'url': 'https://example.com/job/job/7/'},
+        },
+    ]
 
 
 @pytest.mark.asyncio

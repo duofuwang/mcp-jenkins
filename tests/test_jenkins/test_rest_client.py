@@ -442,6 +442,23 @@ class TestQueue:
 
         assert jenkins.get_queue_item(id=1).executable is None
 
+    def test_get_queue_item_with_incomplete_executable(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'id': 1,
+                'inQueueSince': 1767975558000,
+                'url': 'https://example.com/queue/item/1/',
+                'why': None,
+                'task': {'name': 'example-job'},
+                'executable': {'number': 42},
+            }
+        )
+
+        assert jenkins.get_queue_item(id=1).executable == QueueItemExecutable(
+            number=42,
+            url=None,
+        )
+
     def test_cancel_queue_item(self, jenkins, mock_session):
         assert jenkins.cancel_queue_item(id=42) is None
         mock_session.request.assert_called_once_with(
